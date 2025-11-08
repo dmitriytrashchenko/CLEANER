@@ -2,6 +2,8 @@
 
 Комплексный набор Python-инструментов для работы с текстами, сгенерированными искусственным интеллектом.
 
+**🎯 Единая точка входа**: `cleaner.py` - один скрипт для всех функций!
+
 ## 🚀 Основные возможности
 
 ### 1. Очистка текста от Unicode-артефактов
@@ -74,20 +76,50 @@ pip install -r requirements.txt
 pip install python-docx
 ```
 
-## Использование
+## Быстрый старт
 
-## Инструменты для работы с ИИ-текстами (`ai_tools.py`)
+Вся функциональность доступна через **один** главный скрипт `cleaner.py`:
 
-### 1. Детекция ИИ-текста
-
-#### Базовый анализ
 ```bash
-python ai_tools.py detect --file document.txt
+# Просмотр всех команд
+python cleaner.py --help
+
+# Справка по конкретной команде
+python cleaner.py <команда> --help
 ```
 
-#### Полный анализ (с паттернами)
+### Доступные команды:
+
+1. **clean** - Очистка от Unicode-символов
+2. **detect** - Детекция ИИ-текста
+3. **patterns** - Анализ паттернов
+4. **watermark-add** - Добавить водяной знак
+5. **watermark-check** - Проверить водяной знак
+6. **watermark-remove** - Удалить водяной знак
+
+## Использование
+
+### 1. Очистка текста от Unicode-артефактов
+
 ```bash
-python ai_tools.py detect --file document.txt --patterns
+# Базовая очистка
+python cleaner.py clean input.txt -o output.txt
+
+# С заменой исходного файла
+python cleaner.py clean document.txt --inplace
+
+# С анализом частоты слов (топ-200)
+python cleaner.py clean text.txt -o clean.txt --analyze-words
+```
+
+### 2. Детекция ИИ-текста
+
+```bash
+# Базовый анализ
+python cleaner.py detect --file document.txt
+
+# Полный анализ (с паттернами)
+python cleaner.py detect --file document.txt --patterns
 ```
 
 #### Пример вывода
@@ -108,10 +140,10 @@ python ai_tools.py detect --file document.txt --patterns
   Повторяющиеся паттерны:         30.0% ✓
 ```
 
-### 2. Анализ паттернов
+### 3. Анализ паттернов
 
 ```bash
-python ai_tools.py patterns --file document.txt
+python cleaner.py patterns --file document.txt
 ```
 
 Показывает:
@@ -120,23 +152,23 @@ python ai_tools.py patterns --file document.txt
 - Чрезмерно используемую лексику
 - Структурные паттерны предложений
 
-### 3. Водяные знаки
+### 4. Водяные знаки
 
 #### Добавление водяного знака (концентрированный)
 ```bash
-python ai_tools.py watermark-add --file document.txt --author "Иван Иванов" --output marked.txt
+python cleaner.py watermark-add --file document.txt --author "Иван Иванов" -o marked.txt
 ```
 
 #### С метаданными
 ```bash
-python ai_tools.py watermark-add --file doc.txt --author "Автор" \
-    --metadata project=MyProject version=1.0 --output marked.txt
+python cleaner.py watermark-add --file doc.txt --author "Автор" \
+    --metadata project=MyProject version=1.0 -o marked.txt
 ```
 
 #### Распределенный водяной знак (более устойчивый к редактированию)
 ```bash
-python ai_tools.py watermark-add --file doc.txt --author "Автор" \
-    --distributed --density 0.2 --output marked.txt
+python cleaner.py watermark-add --file doc.txt --author "Автор" \
+    --distributed --density 0.2 -o marked.txt
 ```
 
 Параметр `density` (0.0-1.0) контролирует частоту встраивания знака.
@@ -144,26 +176,18 @@ python ai_tools.py watermark-add --file doc.txt --author "Автор" \
 #### Проверка водяного знака
 ```bash
 # Концентрированный
-python ai_tools.py watermark-check --file marked.txt
+python cleaner.py watermark-check --file marked.txt
 
 # Распределенный (нужно указать автора)
-python ai_tools.py watermark-check --file marked.txt --author "Автор"
+python cleaner.py watermark-check --file marked.txt --author "Автор"
 ```
 
 #### Удаление водяного знака
 ```bash
-python ai_tools.py watermark-remove --file marked.txt --output clean.txt
+python cleaner.py watermark-remove --file marked.txt -o clean.txt
 ```
 
-## Очистка текста (`text_cleaner.py`)
-
-### Базовое использование
-
-#### Для .txt файлов:
-
-```bash
-python text_cleaner.py input.txt -o output.txt
-```
+## Дополнительные возможности
 
 #### Для .docx файлов:
 
@@ -302,15 +326,18 @@ pip install python-docx
 
 ```
 CLEANER/
-├── text_cleaner.py       # Основной скрипт очистки текста от Unicode-символов
-├── ai_tools.py           # CLI для работы с ИИ-текстами
+├── cleaner.py            # 🎯 ГЛАВНЫЙ СКРИПТ - единая точка входа
 ├── watermark.py          # Модуль водяных знаков и стеганографии
 ├── ai_detector.py        # Модуль детекции искусственности текста
 ├── pattern_analyzer.py   # Модуль анализа паттернов ИИ-текста
+├── text_cleaner.py       # (устаревший) Отдельный скрипт очистки
+├── ai_tools.py           # (устаревший) Отдельный CLI для AI
 ├── requirements.txt      # Зависимости проекта
 ├── README.md            # Документация
 └── example_input.txt    # Пример файла для тестирования
 ```
+
+**Примечание**: Используйте `cleaner.py` - он объединяет всю функциональность!
 
 ## Технические детали
 
@@ -349,21 +376,21 @@ CLEANER/
 ### Проверка текста перед публикацией
 ```bash
 # 1. Анализ искусственности
-python ai_tools.py detect --file article.txt --patterns
+python cleaner.py detect --file article.txt --patterns
 
 # 2. Очистка от Unicode-артефактов
-python text_cleaner.py article.txt -o article_clean.txt
+python cleaner.py clean article.txt -o article_clean.txt
 
 # 3. Добавление водяного знака
-python ai_tools.py watermark-add --file article_clean.txt \
+python cleaner.py watermark-add --file article_clean.txt \
     --author "Ваше Имя" --metadata date=2025-11-08 --distributed
 ```
 
 ### Проверка чужого текста
 ```bash
 # Проверка на ИИ и поиск водяных знаков
-python ai_tools.py detect --file suspicious.txt --patterns
-python ai_tools.py watermark-check --file suspicious.txt
+python cleaner.py detect --file suspicious.txt --patterns
+python cleaner.py watermark-check --file suspicious.txt
 ```
 
 ## Часто задаваемые вопросы (FAQ)
