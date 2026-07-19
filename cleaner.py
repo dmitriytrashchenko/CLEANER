@@ -11,6 +11,10 @@ import argparse
 import re
 from collections import Counter
 
+if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+
 # Импорт модулей очистки
 try:
     from docx import Document
@@ -627,10 +631,133 @@ def cli_mode():
     if not args.command:
         return None
 
-    # Выполнение команд (упрощенная версия, основная логика остается)
-    # ... (здесь будет код выполнения команд из старой версии)
-
     return args
+
+
+def _read_text_file(file_path):
+    """Читает .txt или .docx файл, возвращает текст."""
+    if file_path.endswith('.docx'):
+        if not DOCX_AVAILABLE:
+            print_error("Для работы с .docx установите: pip install python-docx")
+            return None
+        doc = Document(file_path)
+        return '\n'.join(p.text for p in doc.paragraphs)
+    with open(file_path, 'r', encoding='utf-8') as f:
+        return f.read()
+
+
+def _write_text_file(file_path, source_path, text):
+    """Сохраняет текст в .txt или .docx (для .docx копирует форматирование source_path)."""
+    if file_path.endswith('.docx'):
+        doc = Document(source_path)
+        paragraphs = text.split('\n')
+        for paragraph, new_text in zip(doc.paragraphs, paragraphs):
+            paragraph.text = new_text
+        doc.save(file_path)
+    else:
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(text)
+
+
+def run_cli_command(args):
+    """Выполняет команду, переданную через аргументы командной строки."""
+    if args.command == 'clean':
+        if not os.path.exists(args.input):
+            print_error(f"Файл '{args.input}' не найден!")
+            return
+        text = _read_text_file(args.input)
+        if text is None:
+            return
+
+        output_path = args.input if args.inplace else (args.output or args.input.rsplit('.', 1)[0] + '_clean.' + args.input.rsplit('.', 1)[-1])
+        cleaned_text, stats = clean_text(text)
+        _write_text_file(output_path, args.input, cleaned_text)
+
+        print_success(f"Файл сохранен: {output_path}")
+        print_clean_statistics(stats, len(text), len(cleaned_text))
+
+        if args.analyze_words:
+            print_section_header("АНАЛИЗ ЧАСТОТЫ СЛОВ (ТОП-200)", "📊")
+            for i, (word, count) in enumerate(analyze_word_frequency(cleaned_text), 1):
+                print(f"  {i:3d}. {word:30s} - {count:5d} раз")
+
+    elif args.command == 'detect':
+        if not os.path.exists(args.file):
+            print_error(f"Файл '{args.file}' не найден!")
+            return
+        text = _read_text_file(args.file)
+        if text is None:
+            return
+
+        score, metrics = ai_detector.calculate_ai_score(text)
+        ai_detector.print_ai_detection_report(score, metrics)
+
+        if args.patterns:
+            pattern_score, pattern_analysis = pattern_analyzer.detect_ai_writing_patterns(text)
+            pattern_analyzer.print_pattern_analysis_report(pattern_score, pattern_analysis)
+            combined_score = (score + pattern_score) / 2
+            print(f"\n📊 КОМБИНИРОВАННАЯ ОЦЕНКА: {combined_score:.1f}%\n")
+
+    elif args.command == 'patterns':
+        if not os.path.exists(args.file):
+            print_error(f"Файл '{args.file}' не найден!")
+            return
+        text = _read_text_file(args.file)
+        if text is None:
+            return
+        pattern_score, pattern_analysis = pattern_analyzer.detect_ai_writing_patterns(text)
+        pattern_analyzer.print_pattern_analysis_report(pattern_score, pattern_analysis)
+
+    elif args.command == 'watermark-add':
+        if not os.path.exists(args.file):
+            print_error(f"Файл '{args.file}' не найден!")
+            return
+        text = _read_text_file(args.file)
+        if text is None:
+            return
+
+        if args.distributed:
+            marked_text = watermark.create_distributed_watermark(text, args.author, args.density)
+        else:
+            marked_text = watermark.embed_watermark(text, args.author)
+
+        output_path = args.output or args.file
+        _write_text_file(output_path, args.file, marked_text)
+        print_success(f"Водяной знак добавлен: {output_path}")
+
+    elif args.command == 'watermark-check':
+        if not os.path.exists(args.file):
+            print_error(f"Файл '{args.file}' не найден!")
+            return
+        text = _read_text_file(args.file)
+        if text is None:
+            return
+
+        if args.author:
+            found, confidence = watermark.detect_distributed_watermark(text, args.author)
+            if found:
+                print_success(f"Распределенный водяной знак найден (уверенность: {confidence:.1%})")
+            else:
+                print_warning("Распределенный водяной знак не найден")
+        else:
+            data = watermark.extract_watermark(text)
+            if data:
+                watermark.print_watermark_info(data)
+            else:
+                print_warning("Водяной знак не найден")
+
+    elif args.command == 'watermark-remove':
+        if not os.path.exists(args.file):
+            print_error(f"Файл '{args.file}' не найден!")
+            return
+        text = _read_text_file(args.file)
+        if text is None:
+            return
+
+        cleaned_text = watermark.remove_watermark(text)
+        output_path = args.output or args.file
+        _write_text_file(output_path, args.file, cleaned_text)
+        print_success(f"Водяной знак удален: {output_path}")
 
 
 # ============================================================================
@@ -643,9 +770,10 @@ def main():
     if len(sys.argv) > 1:
         # CLI режим
         args = cli_mode()
-        # Здесь можно добавить обработку CLI команд из старой версии
-        print_info("CLI режим временно недоступен. Используйте интерактивный режим.")
-        print_info("Запустите без аргументов: python cleaner.py")
+        if args is None:
+            print_info("Запустите без аргументов: python cleaner.py")
+        else:
+            run_cli_command(args)
     else:
         # Интерактивный режим
         try:

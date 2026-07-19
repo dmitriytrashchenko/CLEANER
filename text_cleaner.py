@@ -11,6 +11,10 @@ import re
 from collections import Counter
 from typing import Dict, Tuple
 
+if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+
 # Проверка наличия python-docx
 try:
     from docx import Document
