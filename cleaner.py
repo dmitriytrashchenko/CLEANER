@@ -135,6 +135,41 @@ def print_warning(message):
 
 
 # ============================================================================
+# ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ РАБОТЫ С ФАЙЛАМИ
+# ============================================================================
+
+def read_text_from_file(file_path):
+    """Читает текст из файла (.txt или .docx)"""
+    if file_path.endswith('.txt'):
+        with open(file_path, 'r', encoding='utf-8') as f:
+            return f.read()
+    elif file_path.endswith('.docx'):
+        if not DOCX_AVAILABLE:
+            raise ImportError("Для работы с .docx установите: pip install python-docx")
+        doc = Document(file_path)
+        return '\n'.join([p.text for p in doc.paragraphs])
+    else:
+        raise ValueError("Неподдерживаемый формат файла. Используйте .txt или .docx")
+
+
+def write_text_to_file(file_path, text):
+    """Записывает текст в файл (.txt или .docx)"""
+    if file_path.endswith('.txt'):
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(text)
+    elif file_path.endswith('.docx'):
+        if not DOCX_AVAILABLE:
+            raise ImportError("Для работы с .docx установите: pip install python-docx")
+        # Создаем новый документ
+        doc = Document()
+        for line in text.split('\n'):
+            doc.add_paragraph(line)
+        doc.save(file_path)
+    else:
+        raise ValueError("Неподдерживаемый формат файла. Используйте .txt или .docx")
+
+
+# ============================================================================
 # МОДУЛЬ ОЧИСТКИ ТЕКСТА
 # ============================================================================
 
@@ -247,27 +282,16 @@ def interactive_clean():
 
     try:
         # Читаем
-        if file_path.endswith('.txt'):
-            with open(file_path, 'r', encoding='utf-8') as f:
-                original_text = f.read()
-        elif file_path.endswith('.docx'):
-            if not DOCX_AVAILABLE:
-                print_error("Для работы с .docx установите: pip install python-docx")
-                return
-            doc = Document(file_path)
-            original_text = '\n'.join([p.text for p in doc.paragraphs])
-        else:
-            print_error("Неподдерживаемый формат. Используйте .txt или .docx")
-            return
+        original_text = read_text_from_file(file_path)
 
         # Очищаем
         cleaned_text, stats = clean_text(original_text)
 
         # Сохраняем
         if output_path.endswith('.txt'):
-            with open(output_path, 'w', encoding='utf-8') as f:
-                f.write(cleaned_text)
+            write_text_to_file(output_path, cleaned_text)
         elif output_path.endswith('.docx'):
+            # Для .docx сохраняем структуру документа
             doc = Document(file_path)
             for paragraph in doc.paragraphs:
                 cleaned_para, _ = clean_text(paragraph.text)
@@ -308,8 +332,7 @@ def interactive_detect():
     print(f"\n{Colors.BRIGHT_CYAN}⏳ Анализ...{Colors.RESET}\n")
 
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            text = f.read()
+        text = read_text_from_file(file_path)
 
         # Детекция
         score, metrics = ai_detector.calculate_ai_score(text)
@@ -379,8 +402,7 @@ def interactive_watermark_add():
     print(f"\n{Colors.BRIGHT_CYAN}⏳ Добавление водяного знака...{Colors.RESET}\n")
 
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            text = f.read()
+        text = read_text_from_file(file_path)
 
         if distributed:
             watermarked_text = watermark.create_distributed_watermark(text, author, density=0.15)
@@ -389,8 +411,7 @@ def interactive_watermark_add():
             watermarked_text = watermark.embed_watermark(text, author)
             print_info(f"Тип: {Colors.GREEN}Концентрированный{Colors.RESET}")
 
-        with open(output_path, 'w', encoding='utf-8') as f:
-            f.write(watermarked_text)
+        write_text_to_file(output_path, watermarked_text)
 
         print_success(f"Водяной знак добавлен: {output_path}")
         print(f"{Colors.WHITE}Автор: {Colors.BRIGHT_GREEN}{author}{Colors.RESET}")
@@ -413,8 +434,7 @@ def interactive_watermark_check():
     print(f"\n{Colors.BRIGHT_CYAN}⏳ Проверка...{Colors.RESET}\n")
 
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            text = f.read()
+        text = read_text_from_file(file_path)
 
         # Проверка концентрированного
         extracted = watermark.extract_watermark(text)
@@ -460,13 +480,11 @@ def interactive_watermark_remove():
     print(f"\n{Colors.BRIGHT_CYAN}⏳ Удаление...{Colors.RESET}\n")
 
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            text = f.read()
+        text = read_text_from_file(file_path)
 
         cleaned_text = watermark.remove_watermark(text)
 
-        with open(output_path, 'w', encoding='utf-8') as f:
-            f.write(cleaned_text)
+        write_text_to_file(output_path, cleaned_text)
 
         print_success(f"Водяной знак удален: {output_path}")
         print(f"{Colors.WHITE}Удалено символов: {Colors.BRIGHT_YELLOW}{len(text) - len(cleaned_text)}{Colors.RESET}\n")
@@ -550,8 +568,7 @@ def interactive_mode():
             if os.path.exists(file_path):
                 print(f"\n{Colors.BRIGHT_CYAN}⏳ Анализ...{Colors.RESET}\n")
                 try:
-                    with open(file_path, 'r', encoding='utf-8') as f:
-                        text = f.read()
+                    text = read_text_from_file(file_path)
                     score, analysis = pattern_analyzer.detect_ai_writing_patterns(text)
                     pattern_analyzer.print_pattern_analysis_report(score, analysis)
                 except Exception as e:
